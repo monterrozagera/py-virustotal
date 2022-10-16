@@ -1,5 +1,6 @@
 vt-venv/
 apikey
+report*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
