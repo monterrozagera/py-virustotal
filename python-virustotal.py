@@ -31,7 +31,7 @@ class VT_Handler():
             return hash_lib.hexdigest()
 
 
-    def hashLookup(self, hash_sample) -> None:
+    def hashLookup(self, hash_sample) -> dict:
         """ sends GET request to gather information about hash """
         " TODO: add more outputz "
 
@@ -47,17 +47,12 @@ class VT_Handler():
 
         if not contents['data']:
             print('[!] Hash not present in virustotal DB.')
+            return 0
         else:
             names = contents['data'][0]['attributes']['names']
             tags = contents['data'][0]['attributes']['tags']
 
-            print("[!] File names:")
-            for name in names:
-                print('\t' + name)
-
-            print("[*] Tags:")
-            for tag in tags:
-                print('\t' + tag)
+            return names, tags
 
     def uploadFile(self, file_to_upload) -> str:
         """ uploads file to VirusTotal, returns report ID """
@@ -72,7 +67,7 @@ class VT_Handler():
         contents = response.json()
         return contents['data']['id']
 
-    def getFileAnalysis(self, id):
+    def getFileAnalysis(self, id) -> dict:
         """ prints results of file analysis """
         url = f"https://www.virustotal.com/api/v3/analyses/{id}"
         headers = {
@@ -83,18 +78,18 @@ class VT_Handler():
         response = requests.get(url, headers=headers)
         contents = response.json()
 
-        while contents['data']['attributes']['status'] == 'queued':
-            sleep(5)
-            print("[!] Report status: queued. Waiting..")
-            response = requests.get(url, headers=headers)
-            contents = response.json()
+        try:
+            while contents['data']['attributes']['status'] == 'queued':
+                sleep(10)
+                print("[!] Report status: queued. Waiting..")
+                response = requests.get(url, headers=headers)
+                contents = response.json()
+        except KeyboardInterrupt:
+            print("[!] User interrupted.")
 
         if contents['data']['attributes']['status'] == 'completed':
             stats = contents['data']['attributes']['stats']
-
-            print("[!] Stats: ")
-            for attribute, value in stats.items():
-                print(f"\t{attribute} = {value}")
+            return stats
 
     def createReport(self):
         """ creates PDF report file """
@@ -121,6 +116,7 @@ if __name__ == '__main__':
     virus_total.printFile(file)
 
     hash = virus_total.getFileHash(file)
-    virus_total.hashLookup(hash)
+    names, tags = virus_total.hashLookup(hash)
     id = virus_total.uploadFile(file)
-    virus_total.getFileAnalysis(id=id)
+    stats = virus_total.getFileAnalysis(id=id)
+    print(names, tags, stats)
